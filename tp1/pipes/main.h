@@ -7,10 +7,11 @@
  * 
  * Grupo:
  * -> Gabriel Gazola Milan / DRE 116034377
- * -> João Wieland / DRE ???
+ * -> João Wieland / DRE 116077278
  */
 
 // Return codes
+#define OK 0
 #define WRONG_ARG_NUMBER 1
 #define INVALID_NUMBER 2
 #define PIPE_ERROR 3

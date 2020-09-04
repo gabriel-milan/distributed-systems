@@ -31,6 +31,8 @@
 *.out
 *.app
 tp1/pipes/pipe
+tp1/sockets/consumer
+tp1/sockets/producer
 
 # VSCode stuff
 .vscode/

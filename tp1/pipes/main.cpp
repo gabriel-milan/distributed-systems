@@ -7,7 +7,7 @@
  * 
  * Grupo:
  * -> Gabriel Gazola Milan / DRE 116034377
- * -> João Wieland / DRE ???
+ * -> João Pedro Wieland / DRE 116077278
  */
 
 #include <iostream>
@@ -46,7 +46,7 @@ int main(int argc, char **argv)
   // Checando número de parâmetros
   if (argc != 2)
   {
-    std::cout << "Número de argumentos incorreto!" << std::endl;
+    std::cerr << "Número de argumentos incorreto!" << std::endl;
     printUsage();
     return WRONG_ARG_NUMBER;
   }
@@ -58,7 +58,7 @@ int main(int argc, char **argv)
   int n_numbers = atoi(argv[1]);
   if (n_numbers <= 0)
   {
-    std::cout << "Número fornecido inválido!" << std::endl;
+    std::cerr << "Número fornecido inválido!" << std::endl;
     printUsage();
     return INVALID_NUMBER;
   }
@@ -69,7 +69,7 @@ int main(int argc, char **argv)
   int pipeEnds[2];
   if (pipe(pipeEnds) == -1)
   {
-    std::cout << "Falha ao iniciar o pipe!" << std::endl;
+    std::cerr << "Falha ao iniciar o pipe!" << std::endl;
     return PIPE_ERROR;
   }
 
@@ -77,7 +77,7 @@ int main(int argc, char **argv)
   int pid = fork();
   if (pid == -1)
   {
-    std::cout << "Falha ao realizar o fork!" << std::endl;
+    std::cerr << "Falha ao realizar o fork!" << std::endl;
     return FORK_ERROR;
   }
 
@@ -96,14 +96,14 @@ int main(int argc, char **argv)
       tmp = generateN(tmp);
       if (write(pipeEnds[1], &tmp, sizeof(int)) == -1)
       {
-        std::cout << "Erro ao escrever no pipe!" << std::endl;
+        std::cerr << "Erro ao escrever no pipe!" << std::endl;
         return WRITE_PIPE_ERROR;
       }
     }
     tmp = 0;
     if (write(pipeEnds[1], &tmp, sizeof(int)) == -1)
     {
-      std::cout << "Erro ao escrever no pipe!" << std::endl;
+      std::cerr << "Erro ao escrever no pipe!" << std::endl;
       return WRITE_PIPE_ERROR;
     }
   }
@@ -125,7 +125,7 @@ int main(int argc, char **argv)
       counter++;
       if (read(pipeEnds[0], &val, sizeof(int)) == -1)
       {
-        std::cout << "Erro ao ler do pipe!" << std::endl;
+        std::cerr << "Erro ao ler do pipe!" << std::endl;
         return READ_PIPE_ERROR;
       }
       if (val == 0)
@@ -133,4 +133,6 @@ int main(int argc, char **argv)
       std::cout << "Número #" << counter << ": " << val << ". É primo? " << isPrime(val) << std::endl;
     }
   }
+
+  return OK;
 }
