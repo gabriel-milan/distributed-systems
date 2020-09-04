@@ -30,3 +30,7 @@
 *.exe
 *.out
 *.app
+tp1/pipes/pipe
+
+# VSCode stuff
+.vscode/
