@@ -18,3 +18,6 @@
 #define FORK_ERROR 4
 #define WRITE_PIPE_ERROR 5
 #define READ_PIPE_ERROR 6
+
+// Macros
+#define MESSAGE_MAX_SIZE 30

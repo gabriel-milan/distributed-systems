@@ -40,6 +40,63 @@ void printUsage()
   std::cout << " - n_numbers: número de números a serem gerados (1 <= n_numbers) (ex. 1000)" << std::endl;
 }
 
+/* A utility function to reverse a string  */
+// Retirado de: https://www.geeksforgeeks.org/implement-itoa/#:~:text=For%20example%3A%2D%20if%20base,with%20a%20minus%20sign%20(%2D).
+void reverse(char str[], int length)
+{
+  int start = 0;
+  int end = length - 1;
+  while (start < end)
+  {
+    std::swap(*(str + start), *(str + end));
+    start++;
+    end--;
+  }
+}
+
+// Implementation of itoa()
+// Retirado de: https://www.geeksforgeeks.org/implement-itoa/#:~:text=For%20example%3A%2D%20if%20base,with%20a%20minus%20sign%20(%2D).
+char *itoa(int num, char *str, int base)
+{
+  int i = 0;
+  bool isNegative = false;
+
+  /* Handle 0 explicitely, otherwise empty string is printed for 0 */
+  if (num == 0)
+  {
+    str[i++] = '0';
+    str[i] = '\0';
+    return str;
+  }
+
+  // In standard itoa(), negative numbers are handled only with
+  // base 10. Otherwise numbers are considered unsigned.
+  if (num < 0 && base == 10)
+  {
+    isNegative = true;
+    num = -num;
+  }
+
+  // Process individual digits
+  while (num != 0)
+  {
+    int rem = num % base;
+    str[i++] = (rem > 9) ? (rem - 10) + 'a' : rem + '0';
+    num = num / base;
+  }
+
+  // If number is negative, append '-'
+  if (isNegative)
+    str[i++] = '-';
+
+  str[i] = '\0'; // Append string terminator
+
+  // Reverse the string
+  reverse(str, i);
+
+  return str;
+}
+
 // Função principal
 int main(int argc, char **argv)
 {
@@ -90,18 +147,21 @@ int main(int argc, char **argv)
     close(pipeEnds[0]);
 
     // Produzindo números e os escrevendo
+    char msg[MESSAGE_MAX_SIZE];
     int tmp = 0;
     for (unsigned int i = 0; i < n_numbers; i++)
     {
       tmp = generateN(tmp);
-      if (write(pipeEnds[1], &tmp, sizeof(int)) == -1)
+      itoa(tmp, msg, 10);
+      if (write(pipeEnds[1], &msg, sizeof(char[MESSAGE_MAX_SIZE])) == -1)
       {
         std::cerr << "Erro ao escrever no pipe!" << std::endl;
         return WRITE_PIPE_ERROR;
       }
     }
     tmp = 0;
-    if (write(pipeEnds[1], &tmp, sizeof(int)) == -1)
+    itoa(tmp, msg, 10);
+    if (write(pipeEnds[1], &msg, sizeof(char[MESSAGE_MAX_SIZE])) == -1)
     {
       std::cerr << "Erro ao escrever no pipe!" << std::endl;
       return WRITE_PIPE_ERROR;
@@ -122,12 +182,14 @@ int main(int argc, char **argv)
     while (true)
     {
       int val;
+      char msg[MESSAGE_MAX_SIZE];
       counter++;
-      if (read(pipeEnds[0], &val, sizeof(int)) == -1)
+      if (read(pipeEnds[0], &msg, sizeof(char[MESSAGE_MAX_SIZE])) == -1)
       {
         std::cerr << "Erro ao ler do pipe!" << std::endl;
         return READ_PIPE_ERROR;
       }
+      val = atoi(msg);
       if (val == 0)
         break;
       std::cout << "Número #" << counter << ": " << val << ". É primo? " << isPrime(val) << std::endl;
