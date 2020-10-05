@@ -71,13 +71,16 @@ private:
 };
 
 /*
- *  Wrapper para escrever na tela
+ *  Método que imprime a forma de uso do script
  */
-void log(std::string message, std::mutex coutMutex)
+void printUsage()
 {
-  coutMutex.lock();
-  std::cout << message << std::endl;
-  coutMutex.unlock();
+  std::cout << "Usage: ./main < Np > < Nc > < N > < M >" << std::endl;
+  std::cout << "Arguments:" << std::endl;
+  std::cout << " - Np: número de produtores (ex: 3)" << std::endl;
+  std::cout << " - Nc: número de consumidores (ex: 3)" << std::endl;
+  std::cout << " - N: tamanho máximo da memória compartilhada (ex: 10)" << std::endl;
+  std::cout << " - M (opcional): quantidade de números que devem ser gerados (padão: 100000)" << std::endl;
 }
 
 /*
@@ -86,15 +89,26 @@ void log(std::string message, std::mutex coutMutex)
 int main(int argc, char **argv)
 {
 
+  // Tratando argumentos
+  if ((argc != 4) && (argc != 5))
+  {
+    std::cerr << "Número inválido de argumentos!" << std::endl;
+    printUsage();
+    return WRONG_ARG_NUMBER;
+  }
+
   srand(time(NULL));
 
-  int M = (int)10e5;
-  int N = 5;
-  int Np = 1;
-  int Nc = 1;
+  int M;
+  int Np = atoi(argv[1]);
+  int Nc = atoi(argv[2]);
+  int N = atoi(argv[3]);
+  if (argc > 4)
+    M = atoi(argv[4]);
+  else
+    M = (int)10e5;
 
   std::mutex M_mutex;
-  std::mutex coutMutex;
 
   std::vector<int> data;
   std::vector<std::thread> producers;
@@ -104,53 +118,55 @@ int main(int argc, char **argv)
   Semaphore empty(N);
   Semaphore full(0);
 
-  std::thread producer([&]() {
-    while (true)
-    {
-      // Checa se deve gerar mais dados
-      M_mutex.lock();
-      int val_m = M;
-      M_mutex.unlock();
-      if (val_m <= 0)
-        break;
+  for (unsigned int i = 0; i < Np; i++)
+  {
+    producers.push_back(std::thread([&]() {
+      while (true)
+      {
+        // Checa se deve gerar mais dados
+        int val_m = M;
+        if (val_m <= 0)
+          break;
 
-      // Gera dados
-      empty.wait();
-      mutex.wait();
-      M--;
-      data.push_back(generateN());
-      mutex.notify();
-      full.notify();
-    }
-  });
+        // Gera dados
+        empty.wait();
+        mutex.wait();
+        M--;
+        data.push_back(generateN());
+        mutex.notify();
+        full.notify();
+      }
+    }));
+  }
 
-  std::thread consumer([&]() {
-    while (true)
-    {
-      // Pega dados
-      full.wait();
-      mutex.wait();
-      int singlePrime = data.back();
-      data.pop_back();
-      int dataSize = data.size();
-      mutex.notify();
-      empty.notify();
+  for (unsigned int i = 0; i < Nc; i++)
+  {
+    consumers.push_back(std::thread([&]() {
+      while (true)
+      {
+        // Pega dados
+        full.wait();
+        mutex.wait();
+        int singlePrime = data.back();
+        data.pop_back();
+        int dataSize = data.size();
+        mutex.notify();
+        empty.notify();
 
-      // Consome dados
-      coutMutex.lock();
-      std::cout << "Recebi o número " << singlePrime << ", ele é primo? " << isPrime(singlePrime) << std::endl;
-      coutMutex.unlock();
+        // Consome dados
+        std::cout << "Recebi o número " << singlePrime << ", ele é primo? " << isPrime(singlePrime) << std::endl;
 
-      // Checa se deve consumir mais dados
-      M_mutex.lock();
-      int val_m = M;
-      M_mutex.unlock();
-      if ((val_m <= 0) && (dataSize <= 0))
-        break;
-    }
-  });
+        // Checa se deve consumir mais dados
+        int val_m = M;
+        if ((val_m <= 0) && (dataSize <= 0))
+          break;
+      }
+    }));
+  }
 
-  producer.join();
-  consumer.join();
+  for (unsigned int i = 0; i < Np; i++)
+    producers[i].join();
+  for (unsigned int i = 0; i < Nc; i++)
+    consumers[i].join();
   return 0;
 }

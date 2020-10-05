@@ -13,5 +13,4 @@
 
 // Error codes
 #define OK 0
-#define PID_NOT_FOUND 1
-#define SIGNAL_ERROR 2
+#define WRONG_ARG_NUMBER 1
