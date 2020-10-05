@@ -16,6 +16,7 @@
 #include <condition_variable>
 #include <thread>
 #include <vector>
+#include <math.h>
 
 /*
  *  Função para gerar números aleatórios
@@ -31,7 +32,7 @@ int generateN()
  */
 bool isPrime(int n)
 {
-  for (unsigned int i = 2; i < n / 2; i++)
+  for (unsigned int i = 2; i < sqrt(n); i++)
     if ((n % i) == 0)
       return false;
   return true;
@@ -68,6 +69,44 @@ private:
   std::mutex mtx;
   std::condition_variable cv;
   int count;
+};
+
+/*
+ *  Implementação de um contador com mutex
+ */
+class MutexCounter
+{
+public:
+  MutexCounter()
+  {
+    this->counter = 0;
+  }
+
+  int getCount()
+  {
+    mutex.lock();
+    int val = this->counter;
+    mutex.unlock();
+    return val;
+  }
+
+  void incrementCount()
+  {
+    mutex.lock();
+    this->counter++;
+    mutex.unlock();
+  }
+
+  void decrementCount()
+  {
+    mutex.lock();
+    this->counter--;
+    mutex.unlock();
+  }
+
+private:
+  std::mutex mutex;
+  int counter;
 };
 
 /*
@@ -108,7 +147,8 @@ int main(int argc, char **argv)
   else
     M = (int)10e5;
 
-  std::mutex M_mutex;
+  MutexCounter producer_counter;
+  MutexCounter consumer_counter;
 
   std::vector<int> data;
   std::vector<std::thread> producers;
@@ -121,17 +161,11 @@ int main(int argc, char **argv)
   for (unsigned int i = 0; i < Np; i++)
   {
     producers.push_back(std::thread([&]() {
-      while (true)
+      while (producer_counter.getCount() < M)
       {
-        // Checa se deve gerar mais dados
-        int val_m = M;
-        if (val_m <= 0)
-          break;
-
-        // Gera dados
+        producer_counter.incrementCount();
         empty.wait();
         mutex.wait();
-        M--;
         data.push_back(generateN());
         mutex.notify();
         full.notify();
@@ -142,24 +176,16 @@ int main(int argc, char **argv)
   for (unsigned int i = 0; i < Nc; i++)
   {
     consumers.push_back(std::thread([&]() {
-      while (true)
+      while (consumer_counter.getCount() < M)
       {
-        // Pega dados
+        consumer_counter.incrementCount();
         full.wait();
         mutex.wait();
         int singlePrime = data.back();
         data.pop_back();
-        int dataSize = data.size();
         mutex.notify();
         empty.notify();
-
-        // Consome dados
         std::cout << "Recebi o número " << singlePrime << ", ele é primo? " << isPrime(singlePrime) << std::endl;
-
-        // Checa se deve consumir mais dados
-        int val_m = M;
-        if ((val_m <= 0) && (dataSize <= 0))
-          break;
       }
     }));
   }
