@@ -57,3 +57,27 @@ data = {
     (1,16) : 2.279153504798887,
   },
 }
+
+# Generate line plot for producers
+plt.figure (figsize=(20,20))
+plt.title ("Tempo vs. #Produtores")
+legend = []
+for N in data.keys():
+  X = [1, 2, 4, 8, 16]
+  y = [data[N][(x,1)] for x in X]
+  plt.plot(X, y)
+  legend.append("N={}".format(N))
+plt.legend(legend)
+plt.show()
+
+# Generate line plot for consumers
+plt.figure (figsize=(20,20))
+plt.title ("Tempo vs. #Consumidores")
+legend = []
+for N in data.keys():
+  X = [1, 2, 4, 8, 16]
+  y = [data[N][(1,x)] for x in X]
+  plt.plot(X, y)
+  legend.append("N={}".format(N))
+plt.legend(legend)
+plt.show()
