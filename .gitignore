@@ -33,6 +33,7 @@
 tp1/pipes/pipe
 tp1/sockets/consumer
 tp1/sockets/producer
+tp2/semaphores/main
 
 # VSCode stuff
 .vscode/
