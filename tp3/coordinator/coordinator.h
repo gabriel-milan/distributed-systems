@@ -15,6 +15,12 @@
 #define MESSAGE_MAX_SIZE 10
 #define MAX_CLIENTS 150
 #define MAX_QUEUED_CONNECTIONS 3
+#define SEPARATOR '.'
+
+// Message types
+#define MESSAGE_REQUEST 1
+#define MESSAGE_GRANT 2
+#define MESSAGE_RELEASE 3
 
 // Error codes
 #define OK 0
@@ -26,3 +32,5 @@
 #define SOCKET_SEND_ERROR 6
 #define SOCKET_CONFIG_ERROR 7
 #define SOCKET_LISTEN_ERROR 8
+#define UNKNOWN_MESSAGE_TYPE 9
+#define RELEASE_UNLOCKED_LOCK 10
