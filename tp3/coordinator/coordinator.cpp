@@ -20,12 +20,46 @@
 #include <mutex>
 #include <map>
 
+/*
+ * Iteração em chaves de hashmap extraído de
+ * https://stackoverflow.com/a/16527081/9944075
+ */
+typedef std::map<int, int>::iterator counterMapIterable;
+class key_iterator : public counterMapIterable
+{
+public:
+  key_iterator() : counterMapIterable(){};
+  key_iterator(counterMapIterable s) : counterMapIterable(s){};
+  int *operator->() { return (int *const) & (counterMapIterable::operator->()->first); }
+  int operator*() { return counterMapIterable::operator*().first; }
+};
+
 struct message
 {
   int id;
   int fd;
   int type;
 };
+
+enum command
+{
+  command_print_queue,
+  command_print_history,
+  command_quit,
+  command_invalid,
+};
+
+command resolveCommand(std::string inputCommand)
+{
+  if ((inputCommand == "print_queue") || (inputCommand == "1"))
+    return command_print_queue;
+  else if ((inputCommand == "print_history") || (inputCommand == "2"))
+    return command_print_history;
+  else if ((inputCommand == "quit") || (inputCommand == "3"))
+    return command_quit;
+  else
+    return command_invalid;
+}
 
 message parseMessage(char buffer[MESSAGE_MAX_SIZE + 1], int fd)
 {
@@ -55,14 +89,16 @@ void getGrant(char msg[MESSAGE_MAX_SIZE + 1])
 
 int main(int argc, char **argv)
 {
+  bool running = true;
   std::vector<std::thread> threads;
   std::deque<message> messageQueue;
   std::mutex messageQueueMutex;
   std::deque<message> queue;
   std::mutex queueMutex;
+  std::map<int, int> counter;
 
   /*
-   * Thread socket connections
+   * Thread for socket connections
    * Código base para essa thread:
    * https://www.geeksforgeeks.org/socket-programming-in-cc-handling-multiple-clients-on-server-without-multi-threading/
    */
@@ -116,8 +152,12 @@ int main(int argc, char **argv)
       return SOCKET_LISTEN_ERROR;
     }
 
+    // Configurando timeout do select
+    struct timeval tv;
+    tv.tv_sec = 1;
+
     // Loop principal
-    while (true)
+    while (running)
     {
 
       // Limpa o set de sockets
@@ -137,7 +177,7 @@ int main(int argc, char **argv)
       }
 
       // Aguarda indefinidamente por atividade em algum socket
-      activity = select(maxFd + 1, &readfds, NULL, NULL, NULL);
+      activity = select(maxFd + 1, &readfds, NULL, NULL, &tv);
       if ((activity < 0) && (errno != EINTR))
         std::cout << "Erro no comando select" << std::endl;
 
@@ -175,6 +215,8 @@ int main(int argc, char **argv)
           else
           {
             message tmp = parseMessage(buffer, clientSocket[i]);
+            if (counter.find(tmp.id) == counter.end())
+              counter.insert(std::make_pair(tmp.id, 0));
             if (tmp.type != -35)
             {
               messageQueueMutex.lock();
@@ -184,17 +226,18 @@ int main(int argc, char **argv)
           }
         }
     }
+    return OK;
   }));
 
   /*
-   * Thread mutex
+   * Thread for mutex
    */
   threads.push_back(std::thread([&]() {
     bool locked = false;
     bool work = false;
     bool queueWork = false;
     message msg;
-    while (true)
+    while (running)
     {
       // Pops a message from queue
       messageQueueMutex.lock();
@@ -215,7 +258,7 @@ int main(int argc, char **argv)
         {
         case MESSAGE_REQUEST:
           queueMutex.lock();
-          std::cout << "INFO: Adding REQUEST for process #" << msg.id << std::endl;
+          // std::cout << "INFO: Adding REQUEST for process #" << msg.id << std::endl;
           queue.push_back(msg);
           queueMutex.unlock();
           break;
@@ -225,7 +268,7 @@ int main(int argc, char **argv)
             std::cerr << "Tried to released unlocked lock" << std::endl;
             return RELEASE_UNLOCKED_LOCK;
           }
-          std::cout << "INFO: RELEASE from process #" << msg.id << std::endl;
+          // std::cout << "INFO: RELEASE from process #" << msg.id << std::endl;
           locked = false;
           break;
         default:
@@ -252,20 +295,58 @@ int main(int argc, char **argv)
           char grant[MESSAGE_MAX_SIZE + 1];
           getGrant(grant);
           send(msg.fd, grant, MESSAGE_MAX_SIZE + 1, 0);
-          std::cout << "INFO: GRANT to process #" << msg.id << std::endl;
+          // std::cout << "INFO: GRANT to process #" << msg.id << std::endl;
           // Lock
+          counter[msg.id]++;
           locked = true;
           //
           queueWork = false;
         }
       }
     }
+    return OK;
   }));
 
   /*
-   * Thread interface
+   * Thread for interface
    */
   threads.push_back(std::thread([&]() {
+    std::string strCommand;
+    std::cout << "SD 2020/PLE TP3" << std::endl;
+    while (running)
+    {
+      std::cout << "> ";
+      getline(std::cin, strCommand);
+      switch (resolveCommand(strCommand))
+      {
+      case command_print_queue:
+        std::cout << "Fila de pedidos:" << std::endl;
+        queueMutex.lock();
+        if (queue.size() == 0)
+          std::cout << "vazia." << std::endl;
+        else
+          for (int i = 0; i < queue.size(); i++)
+            std::cout << "  - " << i + 1 << "º: " << queue[i].id << std::endl;
+        queueMutex.unlock();
+        break;
+
+      case command_print_history:
+        std::cout << "Histórico de pedidos atendidos:" << std::endl;
+        for (key_iterator s = counter.begin(); s != counter.end(); ++s)
+          std::cout << "  - Processo " << *s << ": " << counter[*s] << " vezes." << std::endl;
+        break;
+
+      case command_quit:
+        std::cout << "Encerrando programa..." << std::endl;
+        running = false;
+        break;
+
+      default:
+        std::cout << "Comando \"" << strCommand << "\" inválido!" << std::endl;
+        break;
+      }
+    }
+    return OK;
   }));
 
   for (int i = 0; i < threads.size(); i++)
