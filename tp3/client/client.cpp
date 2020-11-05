@@ -178,21 +178,24 @@ string getTimestamp() {
 }
 
 
-void initiateClient(int id, int seconds){
-  int sock = connect();
+void initiateClient(int id, int seconds, int sock){
+
   string timeStamp; 
   ofstream file;
   request(sock, id);
-  sleep(seconds);
-  release(sock, id);
-  disconnect(sock);
-    
+
+
   timeStamp= getTimestamp();
   file.open ("resultado.txt", std::ofstream::out | std::ofstream::app);
   std::cerr << "Processo " << id << " finalizado em " + timeStamp << std::endl;
 
   file << timeStamp +","<< id << std::endl;
   file.close();
+  sleep(seconds);
+  release(sock, id);
+
+    
+
  
 }
 
@@ -202,7 +205,11 @@ int main(int argc, char **argv)
   int r = atoi(argv[1]);
   int k = atoi(argv[2]);
   int id = atoi(argv[3]);
-  for (int i = 0; i < r; i++) 
-    initiateClient(id,k);
+  int sock = connect();
+  for (int i = 0; i < r; i++){ 
+    fork();
+    initiateClient(id,k,sock);
+  }
+  disconnect(sock);
   return OK;
 }
