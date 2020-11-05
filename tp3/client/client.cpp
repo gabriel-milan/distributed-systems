@@ -16,6 +16,16 @@
 #include <arpa/inet.h>
 #include <unistd.h>
 #include <sstream>
+#include <fstream>
+#include <iostream>
+#include <chrono>
+#include <iomanip>
+
+
+
+using namespace std;
+
+
 
 /* A utility function to reverse a string  */
 // Retirado de: https://www.geeksforgeeks.org/implement-itoa/#:~:text=For%20example%3A%2D%20if%20base,with%20a%20minus%20sign%20(%2D).
@@ -150,13 +160,49 @@ void release(int socketFd, int id)
   send(socketFd, &msg, sizeof(char[MESSAGE_MAX_SIZE + 1]), 0);
 }
 
+
+
+// Implementation of getTimeStamp to return time with miliseconds
+// Retirado de: https://gist.github.com/bschlinker/844a88c09dcf7a61f6a8df1e52af7730.
+string getTimestamp() {
+  // get a precise timestamp as a string
+  const auto now = std::chrono::system_clock::now();
+  const auto nowAsTimeT = std::chrono::system_clock::to_time_t(now);
+  const auto nowMs = std::chrono::duration_cast<std::chrono::milliseconds>(
+      now.time_since_epoch()) % 1000;
+  std::stringstream nowSs;
+  nowSs
+      << std::put_time(std::localtime(&nowAsTimeT), "%T")
+      << '.' << std::setfill('0') << std::setw(3) << nowMs.count();
+  return nowSs.str();
+}
+
+
+void initiateClient(int id, int seconds){
+  int sock = connect();
+  string timeStamp; 
+  ofstream file;
+  request(sock, id);
+  sleep(seconds);
+  release(sock, id);
+  disconnect(sock);
+    
+  timeStamp= getTimestamp();
+  file.open ("resultado.txt", std::ofstream::out | std::ofstream::app);
+  std::cerr << "Processo " << id << " finalizado em " + timeStamp << std::endl;
+
+  file << timeStamp +","<< id << std::endl;
+  file.close();
+ 
+}
+
+
 int main(int argc, char **argv)
 {
-  int myId = 123;
-  int sock = connect();
-  request(sock, myId);
-  usleep(3000000);
-  release(sock, myId);
-  disconnect(sock);
+  int r = atoi(argv[1]);
+  int k = atoi(argv[2]);
+  int id = atoi(argv[3]);
+  for (int i = 0; i < r; i++) 
+    initiateClient(id,k);
   return OK;
 }
