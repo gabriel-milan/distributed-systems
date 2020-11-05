@@ -35,6 +35,9 @@ tp1/pipes/pipe
 tp1/sockets/consumer
 tp1/sockets/producer
 tp2/semaphores/main
+tp3/client/client
+tp3/coordinator/coordinator
+*resultado.txt
 
 # VSCode stuff
 .vscode/

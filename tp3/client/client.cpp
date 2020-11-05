@@ -12,6 +12,7 @@
 
 #include <client.h>
 #include <sys/socket.h>
+#include <sys/wait.h>
 #include <iostream>
 #include <arpa/inet.h>
 #include <unistd.h>
@@ -21,11 +22,7 @@
 #include <chrono>
 #include <iomanip>
 
-
-
 using namespace std;
-
-
 
 /* A utility function to reverse a string  */
 // Retirado de: https://www.geeksforgeeks.org/implement-itoa/#:~:text=For%20example%3A%2D%20if%20base,with%20a%20minus%20sign%20(%2D).
@@ -108,7 +105,7 @@ int connect()
     std::cerr << "Erro ao conectar com o coordenador!" << std::endl;
     return SOCKET_CONNECT_ERROR;
   }
-  std::cout << "Conectado com sucesso ao coordenador." << std::endl;
+  std::cout << "Processo " << getpid() << " conectado com sucesso ao coordenador." << std::endl;
   return sock;
 }
 
@@ -160,56 +157,65 @@ void release(int socketFd, int id)
   send(socketFd, &msg, sizeof(char[MESSAGE_MAX_SIZE + 1]), 0);
 }
 
-
-
 // Implementation of getTimeStamp to return time with miliseconds
 // Retirado de: https://gist.github.com/bschlinker/844a88c09dcf7a61f6a8df1e52af7730.
-string getTimestamp() {
+string getTimestamp()
+{
   // get a precise timestamp as a string
   const auto now = std::chrono::system_clock::now();
   const auto nowAsTimeT = std::chrono::system_clock::to_time_t(now);
-  const auto nowMs = std::chrono::duration_cast<std::chrono::milliseconds>(
-      now.time_since_epoch()) % 1000;
+  const auto nowMs = std::chrono::duration_cast<std::chrono::milliseconds>(now.time_since_epoch()) % 1000;
   std::stringstream nowSs;
-  nowSs
-      << std::put_time(std::localtime(&nowAsTimeT), "%T")
-      << '.' << std::setfill('0') << std::setw(3) << nowMs.count();
+  nowSs << std::put_time(std::localtime(&nowAsTimeT), "%T") << '.' << std::setfill('0') << std::setw(3) << nowMs.count();
   return nowSs.str();
 }
 
-
-void initiateClient(int id, int seconds, int sock){
-
-  string timeStamp; 
-  ofstream file;
-  request(sock, id);
-
-
-  timeStamp= getTimestamp();
-  file.open ("resultado.txt", std::ofstream::out | std::ofstream::app);
-  std::cerr << "Processo " << id << " finalizado em " + timeStamp << std::endl;
-
-  file << timeStamp +","<< id << std::endl;
-  file.close();
-  sleep(seconds);
-  release(sock, id);
-
-    
-
- 
+void initiateClient(int id, int seconds, int sock)
+{
 }
-
 
 int main(int argc, char **argv)
 {
   int r = atoi(argv[1]);
   int k = atoi(argv[2]);
-  int id = atoi(argv[3]);
-  int sock = connect();
-  for (int i = 0; i < r; i++){ 
-    fork();
-    initiateClient(id,k,sock);
+  int n = atoi(argv[3]);
+
+  int pids[n];
+
+  for (int i = 0; i < n; i++)
+  {
+    if ((pids[i] = fork()) < 0)
+    {
+      std::cerr << "Falhou ao forkar processo" << std::endl;
+      return FORK_FAIL_ERROR;
+    }
+    else if (pids[i] == 0)
+    {
+      int id = getpid();
+      int sock = connect();
+      string timeStamp;
+      ofstream file;
+      for (int j = 0; j < r; j++)
+      {
+        request(sock, id);
+        timeStamp = getTimestamp();
+        file.open("resultado.txt", std::ofstream::out | std::ofstream::app);
+        file << timeStamp + "," << id << std::endl;
+        file.close();
+        sleep(k);
+        release(sock, id);
+      }
+      disconnect(sock);
+      return OK;
+    }
   }
-  disconnect(sock);
+
+  int status;
+  int pid;
+  while (n > 0)
+  {
+    pid = wait(&status);
+    --n;
+  }
   return OK;
 }
